@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "자리톡",
+      "hasCanvas": false,
+      "bodyTextLen": 687,
+      "bodyTextHash": "31350fa539e7b0a21e427128af30b1cb4cff58cab9c6a350a70760a17dfca928",
+      "bodyTextPrefix": "KORAIL SEAT WATCH 자리톡 00:00:00 서울 → 부산 서울 → 동대구 서울 → 대전 용산 → 광주송",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "자리톡",
+      "hasCanvas": false,
+      "bodyTextLen": 678,
+      "bodyTextHash": "4132b11b21c8e04e3ac3fa5cc0784625a8f38345b2c58c157b388bb68c3a22bd",
+      "bodyTextPrefix": "KORAIL SEAT WATCH 자리톡 서울 → 부산 서울 → 동대구 서울 → 대전 용산 → 광주송정 서울 → 강릉",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}

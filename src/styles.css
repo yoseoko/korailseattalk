@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #09090b;
+  --color-elevated: #121214;
+  --color-surface: #1a1a1e;
+  --color-surface-2: #222226;
+  --color-foreground: #f4f4f5;
+  --color-muted: #a1a1aa;
+  --color-subtle: #71717a;
+  --color-accent: #d6d8de;
+  --color-accent-foreground: #09090b;
+  --color-border: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  --color-ring: color-mix(in oklab, var(--color-accent) 55%, transparent);
+  --color-success: #7dcea0;
+  --color-success-soft: color-mix(in oklab, var(--color-success) 16%, transparent);
+  --color-danger: #e07a7a;
+  --color-danger-soft: color-mix(in oklab, var(--color-danger) 16%, transparent);
+  --color-warn: #d7b07a;
+  --color-warn-soft: color-mix(in oklab, var(--color-warn) 16%, transparent);
+
+  --font-sans: "IBM Plex Sans KR", "Segoe UI", system-ui, sans-serif;
+  --font-display: "IBM Plex Sans KR", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-border: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-border-hover: 0 0 0 1px rgba(255, 255, 255, 0.13);
+
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: var(--color-background);
+    color: var(--color-foreground);
+  }
+
+  body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, color-mix(in oklab, var(--color-foreground) 5%, transparent), transparent 60%),
+      var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  input[type="date"],
+  input[type="time"],
+  select {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.track-grid {
+  background-image: linear-gradient(
+    to right,
+    color-mix(in oklab, var(--color-foreground) 5%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 48px 100%;
+}
+
+.live-dot {
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 70%, transparent);
+  animation: pulse-dot 1.8s var(--ease-smooth-out) infinite;
+}
+
+@keyframes pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-success) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
