@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, LoaderCircle, Radio, Settings2, TrainFront } from "lucide-react";
+import { ArrowLeftRight, Bell, LoaderCircle, Radio, Settings2, Smartphone, TrainFront } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { StationField } from "@/components/station-field";
@@ -44,6 +44,7 @@ import {
 import type { SeatState, Train } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWatcher } from "@/hooks/use-watcher";
+import { APK_RELEASES_URL, isNativeApp } from "@/lib/platform";
 
 function tomorrowYmd() {
   const d = kstNow();
@@ -387,6 +388,7 @@ export function SeatBoard() {
   const [searching, setSearching] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState<number | null>(null);
+  const native = isNativeApp();
 
   useEffect(() => {
     if (!settings.lastDate) settings.patch({ lastDate: tomorrowYmd() });
@@ -397,6 +399,14 @@ export function SeatBoard() {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!native) return;
+    void import("@capacitor/status-bar").then(({ StatusBar, Style }) => {
+      void StatusBar.setBackgroundColor({ color: "#09090b" });
+      void StatusBar.setStyle({ style: Style.Dark });
+    });
+  }, [native]);
 
   const dateInput = settings.lastDate ? ymdToInput(settings.lastDate) : ymdToInput(tomorrowYmd());
   const selectedTrains = useMemo(
@@ -451,6 +461,12 @@ export function SeatBoard() {
           <h1 className="font-display text-2xl font-medium tracking-tight">자리톡</h1>
         </div>
         <div className="flex items-center gap-2">
+          {native ? (
+            <span className="hidden items-center gap-1.5 rounded-full bg-success-soft px-3 py-2 text-xs text-success shadow-[var(--shadow-border)] sm:flex">
+              <Smartphone className="size-3.5" />
+              폰에서 조회
+            </span>
+          ) : null}
           <div className="hidden items-center gap-2 rounded-full bg-surface px-3 py-2 font-mono text-xs tabular-nums text-muted shadow-[var(--shadow-border)] sm:flex">
             {watcher.watching ? (
               <>
@@ -468,6 +484,36 @@ export function SeatBoard() {
           </Button>
         </div>
       </header>
+
+      {native ? (
+        <p className="mt-4 rounded-[var(--radius-lg)] bg-success-soft px-4 py-3 text-sm text-success shadow-[var(--shadow-border)]">
+          이 앱은 휴대폰에서 코레일로 바로 조회합니다. 감시할 때는 화면을 켜 두세요.
+        </p>
+      ) : (
+        <section className="mt-4 rounded-[var(--radius-xl)] bg-elevated p-4 shadow-[var(--shadow-border)] sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-surface text-accent">
+              <Smartphone className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-display text-sm font-medium">안드로이드 앱으로 설치하세요</h2>
+              <p className="mt-1 text-sm text-muted">
+                웹에서는 코레일이 조회를 막습니다. 설치한 앱에서 열면 휴대폰으로 바로 요청이 갑니다.
+              </p>
+              <ol className="mt-3 list-decimal space-y-1 pl-4 text-xs text-muted">
+                <li>아래 버튼으로 GitHub에서 설치 파일을 받습니다. GitHub에 로그인한 상태여야 합니다.</li>
+                <li>받은 파일을 열고, 알 수 없는 앱 설치를 허용합니다.</li>
+                <li>자리톡을 실행한 뒤 이 화면과 같이 조회·감시하면 됩니다.</li>
+              </ol>
+              <Button className="mt-4 w-full sm:w-auto" asChild>
+                <a href={APK_RELEASES_URL} target="_blank" rel="noreferrer">
+                  설치 파일 받기
+                </a>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)]">
         <section className="rounded-[var(--radius-xl)] bg-elevated p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -595,8 +641,9 @@ export function SeatBoard() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted">
-            이 화면을 켜 둔 동안에만 조회합니다. 조회 간격은 {formatPollRange(settings.pollMinSec, settings.pollMaxSec)}{" "}
-            사이에서 매번 달라집니다.
+            {native
+              ? `앱을 켜 둔 동안에만 조회합니다. 조회 간격은 ${formatPollRange(settings.pollMinSec, settings.pollMaxSec)} 사이에서 매번 달라집니다.`
+              : `이 화면을 켜 둔 동안에만 조회합니다. 실제 조회는 안드로이드 앱에서만 됩니다.`}
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center">
             <div className="rounded-[var(--radius-md)] bg-surface px-2 py-3">
@@ -699,7 +746,9 @@ export function SeatBoard() {
 
       <footer className="mt-10 pb-6 text-center text-[11px] leading-5 text-subtle">
         자리톡은 코레일 공식 서비스가 아닙니다. 예약 후 결제 기한 안에 코레일에서 직접 결제해야 합니다.
-        자동 반복 조회는 이용 약관에 따라 제한될 수 있습니다.
+        {native
+          ? " 감시 중에는 앱을 종료하거나 화면을 완전히 끄면 조회가 멈춥니다."
+          : " 조회·예매는 안드로이드 설치 앱에서만 동작합니다."}
       </footer>
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

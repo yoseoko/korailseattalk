@@ -1,10 +1,11 @@
-import { createCipheriv } from "node:crypto";
+import { CapacitorHttp } from "@capacitor/core";
 import {
   createDynapathIdentity,
   generateDynapathToken,
   KORAIL_USER_AGENT,
   type DynapathIdentity,
 } from "./dynapath";
+import { isNativeApp, NEED_APP_MESSAGE } from "./platform";
 import type { ReservationResult, SeatOption, Train } from "./types";
 
 const BASE = "https://smart.letskorail.com";
@@ -50,13 +51,19 @@ function cookieHeader(jar: Map<string, string>): string {
   return [...jar.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-function absorbCookies(jar: Map<string, string>, response: Response) {
-  const cookies =
-    typeof response.headers.getSetCookie === "function"
-      ? response.headers.getSetCookie()
-      : [];
-  for (const raw of cookies) {
-    const pair = raw.split(";", 1)[0];
+function headerValue(headers: Record<string, string>, name: string): string | null {
+  const lower = name.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === lower) return value;
+  }
+  return null;
+}
+
+function absorbCookieHeaders(jar: Map<string, string>, headers: Record<string, string>) {
+  const raw = headerValue(headers, "set-cookie");
+  if (!raw) return;
+  for (const part of raw.split(/,(?=\s*[A-Za-z0-9_+-]+=)/)) {
+    const pair = part.split(";", 1)[0];
     if (!pair) continue;
     const eq = pair.indexOf("=");
     if (eq < 0) continue;
@@ -64,13 +71,37 @@ function absorbCookies(jar: Map<string, string>, response: Response) {
   }
 }
 
-function encryptPassword(password: string, aesKey: string): string {
-  const key = Buffer.from(aesKey, "utf8");
-  const iv = key.subarray(0, 16);
-  const algo = key.length === 32 ? "aes-256-cbc" : key.length === 24 ? "aes-192-cbc" : "aes-128-cbc";
-  const cipher = createCipheriv(algo, key.subarray(0, algo === "aes-128-cbc" ? 16 : key.length), iv);
-  const encrypted = Buffer.concat([cipher.update(password, "utf8"), cipher.final()]);
-  return Buffer.from(encrypted.toString("base64")).toString("base64");
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function encryptPassword(password: string, aesKey: string): Promise<string> {
+  const keyBytes = new TextEncoder().encode(aesKey);
+  const keyLen = keyBytes.byteLength >= 32 ? 32 : keyBytes.byteLength >= 24 ? 24 : 16;
+  const raw = keyBytes.byteLength === keyLen ? keyBytes : keyBytes.slice(0, keyLen);
+  let cryptoKey: CryptoKey;
+  try {
+    cryptoKey = await crypto.subtle.importKey("raw", raw, { name: "AES-CBC" }, false, ["encrypt"]);
+  } catch {
+    cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyBytes.slice(0, 16),
+      { name: "AES-CBC" },
+      false,
+      ["encrypt"],
+    );
+  }
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-CBC", iv: keyBytes.slice(0, 16) },
+    cryptoKey,
+    new TextEncoder().encode(password),
+  );
+  return btoa(bytesToBase64(new Uint8Array(encrypted)));
 }
 
 function loginFlag(id: string): "2" | "4" | "5" {
@@ -178,6 +209,10 @@ export class KorailClient {
     params: Record<string, string>,
     method: "GET" | "POST" = "GET",
   ): Promise<JsonMap> {
+    if (!isNativeApp()) {
+      throw new KorailError(NEED_APP_MESSAGE, "NEED_APP");
+    }
+
     const url = new URL(path, BASE);
     const body = new URLSearchParams(params);
     const headers: Record<string, string> = {
@@ -188,34 +223,59 @@ export class KorailClient {
     if (DYNAPATH_PATHS.has(path)) {
       headers["x-dynapath-m-token"] = generateDynapathToken(this.identity);
     }
-    let response: Response;
-    if (method === "GET") {
-      url.search = body.toString();
-      response = await fetch(url, { method: "GET", headers });
-    } else {
-      headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8";
-      response = await fetch(url, { method: "POST", headers, body });
+
+    const requestUrl =
+      method === "GET" ? `${url.origin}${url.pathname}?${body.toString()}` : `${url.origin}${url.pathname}`;
+    const response = await CapacitorHttp.request({
+      url: requestUrl,
+      method,
+      headers:
+        method === "POST"
+          ? { ...headers, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
+          : headers,
+      data: method === "POST" ? body.toString() : undefined,
+      responseType: "text",
+      connectTimeout: 20_000,
+      readTimeout: 25_000,
+    });
+
+    const responseHeaders = (response.headers ?? {}) as Record<string, string>;
+    absorbCookieHeaders(this.cookies, responseHeaders);
+    const dynapathResult =
+      headerValue(responseHeaders, "DynaPath-Result") ?? headerValue(responseHeaders, "dynapath-result");
+    const text = typeof response.data === "string" ? response.data : JSON.stringify(response.data ?? {});
+    const status = response.status;
+
+    if (status === 403 || (dynapathResult != null && Number(dynapathResult) < 0)) {
+      let remote = "";
+      try {
+        remote = str((JSON.parse(text) as JsonMap).message);
+      } catch {
+        /* body is not JSON */
+      }
+      const blocked = Number(dynapathResult) === -8202 || /VPN|데이터센터/.test(remote);
+      throw new KorailError(
+        blocked
+          ? "코레일이 이 네트워크에서의 조회를 막고 있습니다. Wi-Fi를 끄고 모바일 데이터로 다시 시도해 보세요."
+          : remote || "코레일 보안 검증에 실패했습니다. 잠시 후 다시 조회하세요.",
+        blocked ? "DYNAPATH_DC" : "DYNAPATH",
+      );
     }
-    absorbCookies(this.cookies, response);
-    const dynapathResult = response.headers.get("DynaPath-Result") ?? response.headers.get("dynapath-result");
-    const text = await response.text();
-    if (response.status === 403 || (dynapathResult != null && Number(dynapathResult) < 0)) {
-      throw new KorailError("코레일 보안 검증에 실패했습니다. 잠시 후 다시 조회하세요.", "DYNAPATH");
-    }
+
     let json: JsonMap;
     try {
       json = JSON.parse(text) as JsonMap;
     } catch {
       throw new KorailError(
-        response.ok ? "코레일 응답을 해석하지 못했습니다." : `코레일 서버 오류 (${response.status})`,
+        status >= 200 && status < 300 ? "코레일 응답을 해석하지 못했습니다." : `코레일 서버 오류 (${status})`,
         "PARSE",
       );
     }
     const code = str(json.h_msg_cd);
     const message = str(json.h_msg_txt) || "코레일 요청이 실패했습니다.";
     const result = str(json.strResult);
-    if (!response.ok) {
-      throw new KorailError(message, code || `HTTP_${response.status}`);
+    if (status < 200 || status >= 300) {
+      throw new KorailError(message, code || `HTTP_${status}`);
     }
     if (code === "MACRO ERROR" || result === "FAIL") {
       throw new KorailError(message, code || "FAIL");
@@ -288,7 +348,15 @@ export class KorailClient {
       try {
         page = await this.searchPage({ ...input, time: cursor });
       } catch (error) {
-        if (error instanceof KorailError && /없|결과/.test(error.message)) break;
+        if (
+          error instanceof KorailError &&
+          error.code !== "NEED_APP" &&
+          error.code !== "DYNAPATH" &&
+          error.code !== "DYNAPATH_DC" &&
+          /열차가 없|조회 결과|조건에 맞는/.test(error.message)
+        ) {
+          break;
+        }
         throw error;
       }
       if (page.length === 0) break;
@@ -326,7 +394,7 @@ export class KorailClient {
         Version: "231231001",
         txtInputFlg: loginFlag(normalized),
         txtMemberNo: normalized,
-        txtPwd: encryptPassword(password, aesKey),
+        txtPwd: await encryptPassword(password, aesKey),
         idx,
       },
       "POST",
