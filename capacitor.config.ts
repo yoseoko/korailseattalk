@@ -6,7 +6,6 @@ const config: CapacitorConfig = {
   webDir: "www",
   backgroundColor: "#09090b",
   server: {
-    url: "https://korailseattalk.grok.me",
     androidScheme: "https",
     allowNavigation: [
       "korailseattalk.grok.me",

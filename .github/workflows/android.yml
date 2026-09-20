@@ -40,7 +40,7 @@ jobs:
           if [ ! -d android ]; then
             npx cap add android
           fi
-          npx cap sync android
+          npm run cap:prepare
           node scripts/patch-android-manifest.mjs
 
       - name: Build APK
