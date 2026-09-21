@@ -44,7 +44,7 @@ import {
 import type { SeatState, Train } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWatcher } from "@/hooks/use-watcher";
-import { APK_RELEASES_URL, directAppLabel, isDirectApp, isNativeApp } from "@/lib/platform";
+import { APK_RELEASES_URL, EXE_RELEASES_URL, directAppLabel, isDirectApp, isNativeApp } from "@/lib/platform";
 
 function tomorrowYmd() {
   const d = kstNow();
@@ -495,23 +495,30 @@ export function SeatBoard() {
         <section className="mt-4 rounded-[var(--radius-xl)] bg-elevated p-4 shadow-[var(--shadow-border)] sm:p-5">
           <div className="flex items-start gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-surface text-accent">
-              <Smartphone className="size-5" />
+              <Laptop className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-sm font-medium">안드로이드 앱으로 설치하세요</h2>
+              <h2 className="font-display text-sm font-medium">윈도우 프로그램으로 실행하세요</h2>
               <p className="mt-1 text-sm text-muted">
-                웹에서는 코레일이 조회를 막습니다. 설치한 앱에서 열면 휴대폰으로 바로 요청이 갑니다.
+                웹에서는 코레일이 조회를 막습니다. 이 컴퓨터에서 실행하면 집 인터넷으로 바로 요청이 갑니다.
               </p>
               <ol className="mt-3 list-decimal space-y-1 pl-4 text-xs text-muted">
-                <li>아래 버튼으로 GitHub에서 설치 파일을 받습니다. GitHub에 로그인한 상태여야 합니다.</li>
-                <li>받은 파일을 열고, 알 수 없는 앱 설치를 허용합니다.</li>
-                <li>자리톡을 실행한 뒤 이 화면과 같이 조회·감시하면 됩니다.</li>
+                <li>아래 버튼으로 GitHub에서 `JariTalk-1.0.0-win-x64.exe`를 받습니다. GitHub에 로그인한 상태여야 합니다.</li>
+                <li>받은 파일을 실행합니다. Windows가 경고하면 "추가 정보" → "실행"을 누릅니다.</li>
+                <li>자리톡 창에서 조회·감시하면 됩니다. 감시할 때는 프로그램을 켜 두세요.</li>
               </ol>
-              <Button className="mt-4 w-full sm:w-auto" asChild>
-                <a href={APK_RELEASES_URL} target="_blank" rel="noreferrer">
-                  설치 파일 받기
-                </a>
-              </Button>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Button className="w-full sm:w-auto" asChild>
+                  <a href={EXE_RELEASES_URL} target="_blank" rel="noreferrer">
+                    윈도우 실행 파일 받기
+                  </a>
+                </Button>
+                <Button variant="outline" className="w-full sm:w-auto" asChild>
+                  <a href={APK_RELEASES_URL} target="_blank" rel="noreferrer">
+                    안드로이드 설치 파일
+                  </a>
+                </Button>
+              </div>
             </div>
           </div>
         </section>

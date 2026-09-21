@@ -1,7 +1,8 @@
 import { Capacitor } from "@capacitor/core";
 import { isDesktopApp } from "./desktop";
 
-export const APK_RELEASES_URL = "https://github.com/yoseoko/korailseattalk/releases/latest";
+export const APK_RELEASES_URL = "https://github.com/yoseoko/korailseattalk/releases/tag/android-latest";
+export const EXE_RELEASES_URL = "https://github.com/yoseoko/korailseattalk/releases/tag/desktop-latest";
 
 export const NEED_APP_MESSAGE =
   "일반 브라우저에서는 코레일에 연결할 수 없습니다. 자리톡 안드로이드·데스크톱 앱에서 바로 조회하세요.";
