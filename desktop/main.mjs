@@ -1,9 +1,53 @@
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, protocol, shell } from "electron";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import { basename, extname, isAbsolute, join, normalize, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const devUrl = "http://127.0.0.1:8080";
+const appUrl = "jaritok://app/";
 const allowedHosts = new Set(["smart.letskorail.com", "api.telegram.org"]);
 let devServer;
+
+app.protocol.registerSchemesAsPrivileged([
+  { scheme: "jaritok", privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
+
+function mimeType(file) {
+  return (
+    {
+      ".css": "text/css",
+      ".html": "text/html",
+      ".js": "text/javascript",
+      ".json": "application/json",
+      ".svg": "image/svg+xml",
+      ".png": "image/png",
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".woff2": "font/woff2",
+    }[extname(file).toLowerCase()] || "application/octet-stream"
+  );
+}
+
+function registerPackagedAppProtocol() {
+  const webRoot = join(process.resourcesPath, "desktop-web");
+  protocol.handle("jaritok", async (request) => {
+    const url = new URL(request.url);
+    const requestedPath = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
+    const filePath = normalize(join(webRoot, requestedPath));
+    const relativePath = relative(webRoot, filePath);
+    if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
+      return new Response("Not found", { status: 404 });
+    }
+    try {
+      return new Response(await readFile(filePath), {
+        headers: { "content-type": mimeType(basename(filePath)) },
+      });
+    } catch {
+      return new Response("Not found", { status: 404 });
+    }
+  });
+}
 
 function isAllowedUrl(value) {
   try {
@@ -51,7 +95,7 @@ async function directRequest(_event, request) {
 }
 
 async function createWindow() {
-  await waitForApp();
+  if (!app.isPackaged) await waitForApp();
   const window = new BrowserWindow({
     width: 1280,
     height: 900,
@@ -62,20 +106,24 @@ async function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      preload: new URL("./preload.mjs", import.meta.url).pathname,
+      preload: fileURLToPath(new URL("./preload.mjs", import.meta.url)),
     },
   });
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("https://www.korail.com")) void shell.openExternal(url);
     return { action: "deny" };
   });
-  await window.loadURL(devUrl);
+  await window.loadURL(app.isPackaged ? appUrl : devUrl);
 }
 
 ipcMain.handle("jaritok:http", directRequest);
 
 app.whenReady().then(async () => {
-  devServer = spawn("npm", ["run", "dev"], { stdio: "inherit", shell: process.platform === "win32" });
+  if (app.isPackaged) {
+    registerPackagedAppProtocol();
+  } else {
+    devServer = spawn("npm", ["run", "dev"], { stdio: "inherit", shell: process.platform === "win32" });
+  }
   await createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
