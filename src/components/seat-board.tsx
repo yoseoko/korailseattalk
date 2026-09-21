@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, LoaderCircle, Radio, Settings2, Smartphone, TrainFront } from "lucide-react";
+import { ArrowLeftRight, Bell, Laptop, LoaderCircle, Radio, Settings2, Smartphone, TrainFront } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { StationField } from "@/components/station-field";
@@ -44,7 +44,7 @@ import {
 import type { SeatState, Train } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWatcher } from "@/hooks/use-watcher";
-import { APK_RELEASES_URL, isNativeApp } from "@/lib/platform";
+import { APK_RELEASES_URL, directAppLabel, isDirectApp, isNativeApp } from "@/lib/platform";
 
 function tomorrowYmd() {
   const d = kstNow();
@@ -389,6 +389,8 @@ export function SeatBoard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState<number | null>(null);
   const native = isNativeApp();
+  const direct = isDirectApp();
+  const deviceLabel = directAppLabel();
 
   useEffect(() => {
     if (!settings.lastDate) settings.patch({ lastDate: tomorrowYmd() });
@@ -461,10 +463,10 @@ export function SeatBoard() {
           <h1 className="font-display text-2xl font-medium tracking-tight">자리톡</h1>
         </div>
         <div className="flex items-center gap-2">
-          {native ? (
+          {direct ? (
             <span className="hidden items-center gap-1.5 rounded-full bg-success-soft px-3 py-2 text-xs text-success shadow-[var(--shadow-border)] sm:flex">
-              <Smartphone className="size-3.5" />
-              폰에서 조회
+              {native ? <Smartphone className="size-3.5" /> : <Laptop className="size-3.5" />}
+              {deviceLabel}에서 조회
             </span>
           ) : null}
           <div className="hidden items-center gap-2 rounded-full bg-surface px-3 py-2 font-mono text-xs tabular-nums text-muted shadow-[var(--shadow-border)] sm:flex">
@@ -485,9 +487,9 @@ export function SeatBoard() {
         </div>
       </header>
 
-      {native ? (
+      {direct ? (
         <p className="mt-4 rounded-[var(--radius-lg)] bg-success-soft px-4 py-3 text-sm text-success shadow-[var(--shadow-border)]">
-          이 앱은 휴대폰에서 코레일로 바로 조회합니다. 감시할 때는 화면을 켜 두세요.
+          이 앱은 {deviceLabel}에서 코레일로 바로 조회합니다. 감시할 때는 앱을 켜 두세요.
         </p>
       ) : (
         <section className="mt-4 rounded-[var(--radius-xl)] bg-elevated p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -641,7 +643,7 @@ export function SeatBoard() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted">
-            {native
+            {direct
               ? `앱을 켜 둔 동안에만 조회합니다. 조회 간격은 ${formatPollRange(settings.pollMinSec, settings.pollMaxSec)} 사이에서 매번 달라집니다.`
               : `이 화면을 켜 둔 동안에만 조회합니다. 실제 조회는 안드로이드 앱에서만 됩니다.`}
           </p>
@@ -746,7 +748,7 @@ export function SeatBoard() {
 
       <footer className="mt-10 pb-6 text-center text-[11px] leading-5 text-subtle">
         자리톡은 코레일 공식 서비스가 아닙니다. 예약 후 결제 기한 안에 코레일에서 직접 결제해야 합니다.
-        {native
+        {direct
           ? " 감시 중에는 앱을 종료하거나 화면을 완전히 끄면 조회가 멈춥니다."
           : " 조회·예매는 안드로이드 설치 앱에서만 동작합니다."}
       </footer>
