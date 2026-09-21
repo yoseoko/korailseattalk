@@ -6,6 +6,7 @@ import {
   type DynapathIdentity,
 } from "./dynapath";
 import { isNativeApp, NEED_APP_MESSAGE } from "./platform";
+import { desktopRequest, isDesktopApp } from "./desktop";
 import type { ReservationResult, SeatOption, Train } from "./types";
 
 const BASE = "https://smart.letskorail.com";
@@ -209,7 +210,7 @@ export class KorailClient {
     params: Record<string, string>,
     method: "GET" | "POST" = "GET",
   ): Promise<JsonMap> {
-    if (!isNativeApp()) {
+    if (!isNativeApp() && !isDesktopApp()) {
       throw new KorailError(NEED_APP_MESSAGE, "NEED_APP");
     }
 
@@ -226,18 +227,29 @@ export class KorailClient {
 
     const requestUrl =
       method === "GET" ? `${url.origin}${url.pathname}?${body.toString()}` : `${url.origin}${url.pathname}`;
-    const response = await CapacitorHttp.request({
-      url: requestUrl,
-      method,
-      headers:
-        method === "POST"
-          ? { ...headers, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
-          : headers,
-      data: method === "POST" ? body.toString() : undefined,
-      responseType: "text",
-      connectTimeout: 20_000,
-      readTimeout: 25_000,
-    });
+    const requestHeaders =
+      method === "POST"
+        ? { ...headers, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
+        : headers;
+    const response = isDesktopApp()
+      ? await desktopRequest({
+          url: requestUrl,
+          method,
+          headers: requestHeaders,
+          body: method === "POST" ? body.toString() : undefined,
+          responseType: "text",
+          connectTimeout: 20_000,
+          readTimeout: 25_000,
+        })
+      : await CapacitorHttp.request({
+          url: requestUrl,
+          method,
+          headers: requestHeaders,
+          data: method === "POST" ? body.toString() : undefined,
+          responseType: "text",
+          connectTimeout: 20_000,
+          readTimeout: 25_000,
+        });
 
     const responseHeaders = (response.headers ?? {}) as Record<string, string>;
     absorbCookieHeaders(this.cookies, responseHeaders);
