@@ -1,6 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 
 const root = process.cwd();
 const staticDir = join(root, ".vercel", "output", "static");
@@ -17,16 +17,39 @@ if (!existsSync(staticDir)) throw new Error(`Desktop web assets were not created
 const entry = readdirSync(join(staticDir, "assets")).find((name) => /^index-[\w-]+\.js$/.test(name));
 if (!entry) throw new Error("Could not find the desktop client entry bundle.");
 
-const preview = spawnSync("node", ["scripts/preview.mjs", "restart"], { cwd: root, stdio: "inherit" });
-if (preview.status !== 0) process.exit(preview.status ?? 1);
+const previewUrl = "http://127.0.0.1:8081/";
+const preview = spawn("npm", ["run", "preview"], {
+  cwd: root,
+  stdio: "inherit",
+  shell: process.platform === "win32",
+});
+let previewFailure = null;
+preview.on("error", (error) => {
+  previewFailure = `could not start preview: ${error.message}`;
+});
+preview.on("exit", (code, signal) => {
+  previewFailure = `preview exited early (${signal ?? `code ${code}`})`;
+});
 
 let shell;
 try {
-  const response = await fetch("http://127.0.0.1:8081/");
-  if (!response.ok) throw new Error(`Could not render desktop shell (${response.status}).`);
-  shell = await response.text();
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline && previewFailure === null) {
+    try {
+      const response = await fetch(previewUrl, { signal: AbortSignal.timeout(2_000) });
+      if (!response.ok) throw new Error(`Could not render desktop shell (${response.status}).`);
+      shell = await response.text();
+      break;
+    } catch (error) {
+      if (String(error.message || error).startsWith("Could not render desktop shell")) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  if (!shell) {
+    throw new Error(previewFailure ?? `Nothing answered on ${previewUrl} within 60 seconds.`);
+  }
 } finally {
-  spawnSync("node", ["scripts/preview.mjs", "stop"], { cwd: root, stdio: "inherit" });
+  if (!preview.killed) preview.kill();
 }
 
 rmSync(desktopWebDir, { recursive: true, force: true });
