@@ -32,8 +32,12 @@ jobs:
           echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
 
-      - name: Install
-        run: npm ci
+      # The desktop client was added after the original lockfile was created.
+      # Until that lockfile is regenerated, `npm ci` rejects the manifest before
+      # the Android build starts. Resolve the checked-in manifest for releases
+      # instead of producing a release that always fails at the install step.
+      - name: Install release dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
 
       - name: Add Android platform
         run: |
