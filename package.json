@@ -1,5 +1,8 @@
 {
-  "name": "app-builder-workspace",
+  "name": "jaritok-desktop",
+  "version": "1.0.0",
+  "description": "코레일 빈자리를 조회하고 알림을 받는 Windows 데스크톱 앱",
+  "author": "JariTalk Contributors",
   "private": true,
   "sideEffects": false,
   "type": "module",
