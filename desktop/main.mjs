@@ -9,7 +9,7 @@ const appUrl = "jaritok://app/";
 const allowedHosts = new Set(["smart.letskorail.com", "api.telegram.org"]);
 let devServer;
 
-app.protocol.registerSchemesAsPrivileged([
+protocol.registerSchemesAsPrivileged([
   { scheme: "jaritok", privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ]);
 
