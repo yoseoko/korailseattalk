@@ -1,0 +1,47 @@
+name: Windows Desktop Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # The checked-in lockfile predates the desktop packaging dependencies.
+      # Resolve the manifest so release builds are not blocked by that mismatch.
+      - name: Install release dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Build standalone Windows executable
+        run: npm run desktop:pack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jaritok-windows-x64
+          path: dist/JariTalk-*-win-x64.exe
+          if-no-files-found: error
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-latest
+          name: 자리톡 Windows
+          body: |
+            Windows 11 64비트용 독립 실행 파일입니다.
+
+            `JariTalk-*-win-x64.exe` 파일을 내려받아 실행하세요. 별도 설치나 Node.js는 필요하지 않습니다.
+            코레일 조회와 텔레그램 알림 요청은 실행 중인 PC에서 직접 전송됩니다.
+          files: dist/JariTalk-*-win-x64.exe
+          make_latest: true
