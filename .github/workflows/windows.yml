@@ -1,4 +1,4 @@
-name: Windows Desktop Release
+name: Windows EXE from 99b2ea4
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  exe:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,29 +19,31 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # The checked-in lockfile predates the desktop packaging dependencies.
-      # Resolve the manifest so release builds are not blocked by that mismatch.
-      - name: Install release dependencies
-        run: npm install --no-package-lock --no-audit --no-fund
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Build standalone Windows executable
-        run: npm run desktop:pack
+      - name: Install
+        run: npm ci
 
-      - uses: actions/upload-artifact@v4
+      - name: Build web into the app
+        run: npm run build:desktop
+
+      - name: Generate icons
+        run: npx tauri icon public/__grok/icon-180.png
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: jaritok-windows-x64
-          path: dist/JariTalk-*-win-x64.exe
-          if-no-files-found: error
+          tagName: win-99b2ea4
+          releaseName: 자리톡 윈도우 (99b2ea4)
+          releaseBody: |
+            Commit 99b2ea4 기준 윈도우 실행 파일입니다.
+            조회는 이 컴퓨터에서 코레일로 바로 갑니다. 이전 desktop-latest 파일은 쓰지 마세요.
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: desktop-latest
-          name: 자리톡 Windows
-          body: |
-            Windows 11 64비트용 독립 실행 파일입니다.
-
-            `JariTalk-*-win-x64.exe` 파일을 내려받아 실행하세요. 별도 설치나 Node.js는 필요하지 않습니다.
-            코레일 조회와 텔레그램 알림 요청은 실행 중인 PC에서 직접 전송됩니다.
-          files: dist/JariTalk-*-win-x64.exe
-          make_latest: true
+            1. 아래 설치 파일(`Jaritok_..._x64-setup.exe`)을 받습니다.
+            2. 파일을 열어 설치합니다. Windows가 경고하면 "추가 정보" → "실행"을 누릅니다.
+            3. 자리톡을 실행한 뒤 열차를 조회하세요.
+            4. 감시할 때는 프로그램을 켜 두세요. VPN은 끄고 집 인터넷을 사용하세요.
+          releaseDraft: false
+          prerelease: false
+          args: --bundles nsis

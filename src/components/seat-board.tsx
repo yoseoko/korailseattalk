@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, Laptop, LoaderCircle, Radio, Settings2, Smartphone, TrainFront } from "lucide-react";
+import { ArrowLeftRight, Bell, LoaderCircle, Monitor, Radio, Settings2, Smartphone, TrainFront } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { StationField } from "@/components/station-field";
@@ -44,7 +44,7 @@ import {
 import type { SeatState, Train } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWatcher } from "@/hooks/use-watcher";
-import { APK_RELEASES_URL, EXE_RELEASES_URL, directAppLabel, isDirectApp, isNativeApp } from "@/lib/platform";
+import { APK_RELEASES_URL, EXE_RELEASES_URL, isNativeApp, nativeKind } from "@/lib/platform";
 
 function tomorrowYmd() {
   const d = kstNow();
@@ -389,8 +389,7 @@ export function SeatBoard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [now, setNow] = useState<number | null>(null);
   const native = isNativeApp();
-  const direct = isDirectApp();
-  const deviceLabel = directAppLabel();
+  const kind = nativeKind();
 
   useEffect(() => {
     if (!settings.lastDate) settings.patch({ lastDate: tomorrowYmd() });
@@ -403,12 +402,12 @@ export function SeatBoard() {
   }, []);
 
   useEffect(() => {
-    if (!native) return;
+    if (kind !== "android") return;
     void import("@capacitor/status-bar").then(({ StatusBar, Style }) => {
       void StatusBar.setBackgroundColor({ color: "#09090b" });
       void StatusBar.setStyle({ style: Style.Dark });
     });
-  }, [native]);
+  }, [kind]);
 
   const dateInput = settings.lastDate ? ymdToInput(settings.lastDate) : ymdToInput(tomorrowYmd());
   const selectedTrains = useMemo(
@@ -463,10 +462,10 @@ export function SeatBoard() {
           <h1 className="font-display text-2xl font-medium tracking-tight">자리톡</h1>
         </div>
         <div className="flex items-center gap-2">
-          {direct ? (
+          {native ? (
             <span className="hidden items-center gap-1.5 rounded-full bg-success-soft px-3 py-2 text-xs text-success shadow-[var(--shadow-border)] sm:flex">
-              {native ? <Smartphone className="size-3.5" /> : <Laptop className="size-3.5" />}
-              {deviceLabel}에서 조회
+              {kind === "windows" ? <Monitor className="size-3.5" /> : <Smartphone className="size-3.5" />}
+              {kind === "windows" ? "PC에서 조회" : "폰에서 조회"}
             </span>
           ) : null}
           <div className="hidden items-center gap-2 rounded-full bg-surface px-3 py-2 font-mono text-xs tabular-nums text-muted shadow-[var(--shadow-border)] sm:flex">
@@ -487,15 +486,19 @@ export function SeatBoard() {
         </div>
       </header>
 
-      {direct ? (
+      {kind === "windows" ? (
         <p className="mt-4 rounded-[var(--radius-lg)] bg-success-soft px-4 py-3 text-sm text-success shadow-[var(--shadow-border)]">
-          이 앱은 {deviceLabel}에서 코레일로 바로 조회합니다. 감시할 때는 앱을 켜 두세요.
+          이 프로그램은 이 컴퓨터에서 코레일로 바로 조회합니다. 감시할 때는 창을 켜 두세요.
+        </p>
+      ) : kind === "android" ? (
+        <p className="mt-4 rounded-[var(--radius-lg)] bg-success-soft px-4 py-3 text-sm text-success shadow-[var(--shadow-border)]">
+          이 앱은 휴대폰에서 코레일로 바로 조회합니다. 감시할 때는 화면을 켜 두세요.
         </p>
       ) : (
         <section className="mt-4 rounded-[var(--radius-xl)] bg-elevated p-4 shadow-[var(--shadow-border)] sm:p-5">
           <div className="flex items-start gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-surface text-accent">
-              <Laptop className="size-5" />
+              <Monitor className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="font-display text-sm font-medium">윈도우 프로그램으로 실행하세요</h2>
@@ -503,7 +506,7 @@ export function SeatBoard() {
                 웹에서는 코레일이 조회를 막습니다. 이 컴퓨터에서 실행하면 집 인터넷으로 바로 요청이 갑니다.
               </p>
               <ol className="mt-3 list-decimal space-y-1 pl-4 text-xs text-muted">
-                <li>아래 버튼으로 GitHub에서 `JariTalk-1.0.0-win-x64.exe`를 받습니다. GitHub에 로그인한 상태여야 합니다.</li>
+                <li>아래 버튼으로 GitHub에서 실행 파일을 받습니다. GitHub에 로그인한 상태여야 합니다.</li>
                 <li>받은 파일을 실행합니다. Windows가 경고하면 "추가 정보" → "실행"을 누릅니다.</li>
                 <li>자리톡 창에서 조회·감시하면 됩니다. 감시할 때는 프로그램을 켜 두세요.</li>
               </ol>
@@ -650,7 +653,7 @@ export function SeatBoard() {
             )}
           </div>
           <p className="mt-2 text-xs text-muted">
-            {direct
+            {native
               ? `앱을 켜 둔 동안에만 조회합니다. 조회 간격은 ${formatPollRange(settings.pollMinSec, settings.pollMaxSec)} 사이에서 매번 달라집니다.`
               : `이 화면을 켜 둔 동안에만 조회합니다. 실제 조회는 안드로이드 앱에서만 됩니다.`}
           </p>
@@ -755,7 +758,7 @@ export function SeatBoard() {
 
       <footer className="mt-10 pb-6 text-center text-[11px] leading-5 text-subtle">
         자리톡은 코레일 공식 서비스가 아닙니다. 예약 후 결제 기한 안에 코레일에서 직접 결제해야 합니다.
-        {direct
+        {native
           ? " 감시 중에는 앱을 종료하거나 화면을 완전히 끄면 조회가 멈춥니다."
           : " 조회·예매는 안드로이드 설치 앱에서만 동작합니다."}
       </footer>

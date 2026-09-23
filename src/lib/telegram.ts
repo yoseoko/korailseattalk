@@ -1,6 +1,5 @@
-import { CapacitorHttp } from "@capacitor/core";
-import { isDirectApp, NEED_APP_MESSAGE } from "./platform";
-import { desktopRequest, isDesktopApp } from "./desktop";
+import { nativeRequest } from "./native-http";
+import { isNativeApp, NEED_APP_MESSAGE } from "./platform";
 
 export class TelegramError extends Error {
   constructor(message: string) {
@@ -23,32 +22,17 @@ type TelegramResult = {
 };
 
 async function telegramCall(token: string, method: string, body?: Record<string, unknown>) {
-  if (!isDirectApp()) {
+  if (!isNativeApp()) {
     throw new TelegramError(NEED_APP_MESSAGE);
   }
   const url = `https://api.telegram.org/bot${token}/${method}`;
-  const response = isDesktopApp()
-    ? await desktopRequest({
-        url,
-        method: body ? "POST" : "GET",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        body,
-        responseType: "json",
-        connectTimeout: 15_000,
-        readTimeout: 20_000,
-      })
-    : await CapacitorHttp.request({
-        url,
-        method: body ? "POST" : "GET",
-        headers: body ? { "Content-Type": "application/json" } : undefined,
-        data: body,
-        responseType: "json",
-        connectTimeout: 15_000,
-        readTimeout: 20_000,
-      });
-  const json = (
-    typeof response.data === "string" ? JSON.parse(response.data) : response.data
-  ) as TelegramResult;
+  const response = await nativeRequest({
+    url,
+    method: body ? "POST" : "GET",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    data: body,
+  });
+  const json = JSON.parse(response.data || "{}") as TelegramResult;
   if (!json?.ok) {
     throw new TelegramError(json?.description || "텔레그램 요청이 실패했습니다.");
   }

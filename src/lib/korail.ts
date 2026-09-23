@@ -1,4 +1,4 @@
-import { CapacitorHttp } from "@capacitor/core";
+import { nativeRequest } from "./native-http";
 import {
   createDynapathIdentity,
   generateDynapathToken,
@@ -6,7 +6,6 @@ import {
   type DynapathIdentity,
 } from "./dynapath";
 import { isNativeApp, NEED_APP_MESSAGE } from "./platform";
-import { desktopRequest, isDesktopApp } from "./desktop";
 import type { ReservationResult, SeatOption, Train } from "./types";
 
 const BASE = "https://smart.letskorail.com";
@@ -210,7 +209,7 @@ export class KorailClient {
     params: Record<string, string>,
     method: "GET" | "POST" = "GET",
   ): Promise<JsonMap> {
-    if (!isNativeApp() && !isDesktopApp()) {
+    if (!isNativeApp()) {
       throw new KorailError(NEED_APP_MESSAGE, "NEED_APP");
     }
 
@@ -227,35 +226,21 @@ export class KorailClient {
 
     const requestUrl =
       method === "GET" ? `${url.origin}${url.pathname}?${body.toString()}` : `${url.origin}${url.pathname}`;
-    const requestHeaders =
-      method === "POST"
-        ? { ...headers, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
-        : headers;
-    const response = isDesktopApp()
-      ? await desktopRequest({
-          url: requestUrl,
-          method,
-          headers: requestHeaders,
-          body: method === "POST" ? body.toString() : undefined,
-          responseType: "text",
-          connectTimeout: 20_000,
-          readTimeout: 25_000,
-        })
-      : await CapacitorHttp.request({
-          url: requestUrl,
-          method,
-          headers: requestHeaders,
-          data: method === "POST" ? body.toString() : undefined,
-          responseType: "text",
-          connectTimeout: 20_000,
-          readTimeout: 25_000,
-        });
+    const response = await nativeRequest({
+      url: requestUrl,
+      method,
+      headers:
+        method === "POST"
+          ? { ...headers, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" }
+          : headers,
+      data: method === "POST" ? body.toString() : undefined,
+    });
 
-    const responseHeaders = (response.headers ?? {}) as Record<string, string>;
+    const responseHeaders = response.headers;
     absorbCookieHeaders(this.cookies, responseHeaders);
     const dynapathResult =
       headerValue(responseHeaders, "DynaPath-Result") ?? headerValue(responseHeaders, "dynapath-result");
-    const text = typeof response.data === "string" ? response.data : JSON.stringify(response.data ?? {});
+    const text = response.data;
     const status = response.status;
 
     if (status === 403 || (dynapathResult != null && Number(dynapathResult) < 0)) {

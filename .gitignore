@@ -1,9 +1,10 @@
 /node_modules/
-/desktop-web/
-/dist/
 android/
 ios/
 .capacitor/
+/www/
+src-tauri/target
+src-tauri/gen
 .project_id
 .github_repo
 .env
