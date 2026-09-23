@@ -20,7 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "cap:sync": "npx cap sync android",
-    "build:desktop": "TAURI=1 node scripts/with-app-env.mjs vite build && node scripts/prepare-native-web.mjs"
+    "build:desktop": "node scripts/with-app-env.mjs vite build && node scripts/prepare-native-web.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

@@ -25,6 +25,8 @@ jobs:
         run: npm ci
 
       - name: Build web into the app
+        env:
+          TAURI: "1"
         run: npm run build:desktop
 
       - name: Generate icons
